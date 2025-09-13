@@ -37,6 +37,28 @@ export const Web3AuthContextProvider = ({ children }) => {
     init();
   }, []);
 
+  useEffect(() => {
+    if (!userAddress) return;
+
+    const provider = getRpcProvider();
+    
+    let lastUpdate = 0;
+    const handleNewBlock = async (blockNumber) => {
+      const now = Date.now();
+      if (now - lastUpdate > 15000) {
+        lastUpdate = now;
+        await checkBalance();
+        await getERC20Transactions();
+      }
+    };
+
+    provider.on("block", handleNewBlock);
+
+    return () => {
+      provider.removeListener("block", handleNewBlock);
+    };
+  }, [userAddress]);
+
   const connectWallet = async () => {
     if (!web3auth || provider || userAddress) return;
 
