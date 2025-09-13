@@ -40,17 +40,21 @@ const TransactionsList = () => {
       <h2 className="text-xl font-semibold text-gray-300 mb-4">Transactions</h2>
       <div className="divide-y divide-gray-700 max-h-96 overflow-y-auto">
         {transactions.map((tx) => (
-          <div key={tx.hash} className="flex justify-between items-center py-2">
-            <div>
-              <p className="text-gray-400 font-mono text-sm">
+          <div
+            key={tx.hash}
+            className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 border-b border-gray-700"
+          >
+            <div className="mb-2 sm:mb-0">
+              <p className="text-gray-400 font-mono text-xs sm:text-sm break-all">
                 {truncateAddress(tx.from)} → {truncateAddress(tx.to)}
               </p>
-              <p className="text-gray-300 text-sm">
-                {tx.timestamp.toLocaleString()}
+              <p className="text-gray-300 text-xs sm:text-sm">
+                {new Date(tx.timestamp * 1000).toLocaleString()}
               </p>
             </div>
+
             <div
-              className={`font-semibold ${
+              className={`font-semibold text-sm sm:text-base text-right sm:text-left self-end sm:self-auto ${
                 tx.type === "credit" ? "text-green-400" : "text-red-400"
               }`}
             >

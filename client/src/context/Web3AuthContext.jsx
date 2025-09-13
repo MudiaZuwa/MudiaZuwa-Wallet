@@ -51,9 +51,7 @@ export const Web3AuthContextProvider = ({ children }) => {
       setUserAddress(address);
       setSmartAccount(smartAccountInstance);
       await checkBalance(smartAccountInstance, address);
-      console.log("Smart Account Address:", address);
       await getERC20Transactions(address);
-      console.log(transactions);
     } catch (err) {
       console.error("Failed to connect wallet:", err);
       throw err;
@@ -95,9 +93,7 @@ export const Web3AuthContextProvider = ({ children }) => {
 
     try {
       const txHash = await sendGaslessToken(smartAccount, to, amount);
-      console.log("Transaction Hash:", txHash);
       await getERC20Transactions();
-      console.log(transactions);
       return txHash;
     } catch (err) {
       console.error("Transaction failed:", err);
@@ -106,45 +102,57 @@ export const Web3AuthContextProvider = ({ children }) => {
   };
 
   const getERC20Transactions = async (walletAddress) => {
-    console.log(walletAddress);
     const activeAddress = walletAddress || userAddress;
     if (!activeAddress) {
       console.error("Wallet address is required");
       setTransactions([]);
       return;
     }
-    console.log(activeAddress);
+
     try {
       const provider = await getRpcProvider();
-      console.log(provider);
       const token = getTokenContract(provider);
-      console.log(token);
 
-      // Get Transfer events
-      const filter = token.filters.Transfer(null, activeAddress);
-      console.log(filter);
-      const incoming = await token.queryFilter(filter, 0, "latest");
-      console.log(incoming);
+      const latestBlock = await provider.getBlockNumber();
+      const fromBlock = latestBlock - 5000;
 
-      const outFilter = token.filters.Transfer(activeAddress, null);
-      const outgoing = await token.queryFilter(outFilter, 0, "latest");
-      console.log(outgoing);
+      // Incoming
+      const incomingEvents = await token.queryFilter(
+        token.filters.Transfer(null, activeAddress),
+        fromBlock,
+        latestBlock
+      );
 
-      const allTxs = [
-        ...incoming.map((tx) => ({
-          ...tx.args,
-          type: "credit",
-          hash: tx.transactionHash,
-        })),
-        ...outgoing.map((tx) => ({
-          ...tx.args,
-          type: "debit",
-          hash: tx.transactionHash,
-        })),
-      ];
-      console.log(allTxs);
+      // Outgoing
+      const outgoingEvents = await token.queryFilter(
+        token.filters.Transfer(activeAddress, null),
+        fromBlock,
+        latestBlock
+      );
 
-      allTxs.sort((a, b) => b.timestamp - a.timestamp);
+      const formatEvents = async (events, type) => {
+        return Promise.all(
+          events.map(async (tx) => {
+            const block = await provider.getBlock(tx.blockNumber);
+            return {
+              from: tx.args.from,
+              to: tx.args.to,
+              value: formatUnits(tx.args.value, 18),
+              type,
+              hash: tx.transactionHash,
+              blockNumber: tx.blockNumber,
+              timestamp: block.timestamp,
+            };
+          })
+        );
+      };
+
+      const incoming = await formatEvents(incomingEvents, "credit");
+      const outgoing = await formatEvents(outgoingEvents, "debit");
+
+      const allTxs = [...incoming, ...outgoing].sort(
+        (a, b) => b.timestamp - a.timestamp
+      );
 
       setTransactions(allTxs);
     } catch (err) {
