@@ -8,9 +8,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      // Polyfill Node modules for browser
       buffer: "buffer/",
-      process: "process/browser",
+      process: "process",
     },
   },
   define: {
