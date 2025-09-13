@@ -1,0 +1,176 @@
+import { createContext, useContext, useEffect, useState } from "react";
+import { initWeb3Auth } from "../configs/web3auth";
+import { formatUnits } from "ethers";
+import {
+  getRpcProvider,
+  getSigner,
+  getTokenContract,
+  getWeb3AuthSigner,
+} from "../utils/ether";
+import { initSmartAccount, sendGaslessToken } from "../configs/biconomy";
+
+export const Web3AuthContext = createContext();
+
+export const Web3AuthContextProvider = ({ children }) => {
+  const [web3auth, setWeb3auth] = useState(null);
+  const [provider, setProvider] = useState(null);
+  const [userAddress, setUserAddress] = useState("");
+  const [balance, setBalance] = useState(null);
+  const [smartAccount, setSmartAccount] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const web3authInstance = await initWeb3Auth();
+        setWeb3auth(web3authInstance);
+
+        if (web3authInstance.provider) {
+          setProvider(web3authInstance.provider);
+          await connectWallet();
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    init();
+  }, []);
+
+  const connectWallet = async () => {
+    if (!web3auth || provider || userAddress) return;
+
+    try {
+      const web3authProvider = await web3auth.connect();
+      setProvider(web3authProvider);
+
+      const signer = await getWeb3AuthSigner(web3authProvider);
+      const smartAccountInstance = await initSmartAccount(signer);
+      const address = await smartAccountInstance.getAddress();
+
+      setUserAddress(address);
+      setSmartAccount(smartAccountInstance);
+      await checkBalance(smartAccountInstance, address);
+      console.log("Smart Account Address:", address);
+      await getERC20Transactions(address);
+      console.log(transactions);
+    } catch (err) {
+      console.error("Failed to connect wallet:", err);
+      throw err;
+    }
+  };
+
+  const checkBalance = async (customAccount, customAddress) => {
+    const activeAccount = customAccount || smartAccount;
+    const activeAddress = customAddress || userAddress;
+
+    if (!activeAccount || !activeAddress) {
+      console.error("Wallet not connected");
+      return;
+    }
+
+    try {
+      const provider = await getRpcProvider();
+      const token = getTokenContract(provider);
+
+      const rawBalance = await token.balanceOf(activeAddress);
+      setBalance(formatUnits(rawBalance, 18));
+    } catch (err) {
+      console.error("Failed to fetch balance:", err);
+    }
+  };
+
+  const sendTokens = async (to, amount) => {
+    if (!smartAccount) {
+      const error = new Error("Smart Account not initialized");
+      console.error(error.message);
+      throw error;
+    }
+
+    if (!to || !amount) {
+      const error = new Error("Recipient address or amount missing");
+      console.error(error.message);
+      throw error;
+    }
+
+    try {
+      const txHash = await sendGaslessToken(smartAccount, to, amount);
+      console.log("Transaction Hash:", txHash);
+      await getERC20Transactions();
+      console.log(transactions);
+      return txHash;
+    } catch (err) {
+      console.error("Transaction failed:", err);
+      throw err;
+    }
+  };
+
+  const getERC20Transactions = async (walletAddress) => {
+    console.log(walletAddress);
+    const activeAddress = walletAddress || userAddress;
+    if (!activeAddress) {
+      console.error("Wallet address is required");
+      setTransactions([]);
+      return;
+    }
+    console.log(activeAddress);
+    try {
+      const provider = await getRpcProvider();
+      console.log(provider);
+      const token = getTokenContract(provider);
+      console.log(token);
+
+      // Get Transfer events
+      const filter = token.filters.Transfer(null, activeAddress);
+      console.log(filter);
+      const incoming = await token.queryFilter(filter, 0, "latest");
+      console.log(incoming);
+
+      const outFilter = token.filters.Transfer(activeAddress, null);
+      const outgoing = await token.queryFilter(outFilter, 0, "latest");
+      console.log(outgoing);
+
+      const allTxs = [
+        ...incoming.map((tx) => ({
+          ...tx.args,
+          type: "credit",
+          hash: tx.transactionHash,
+        })),
+        ...outgoing.map((tx) => ({
+          ...tx.args,
+          type: "debit",
+          hash: tx.transactionHash,
+        })),
+      ];
+      console.log(allTxs);
+
+      allTxs.sort((a, b) => b.timestamp - a.timestamp);
+
+      setTransactions(allTxs);
+    } catch (err) {
+      console.error("Failed to fetch transactions:", err);
+      setTransactions([]);
+    }
+  };
+
+  const value = {
+    web3auth,
+    provider,
+    connectWallet,
+    checkBalance,
+    balance,
+    sendTokens,
+    userAddress,
+    transactions,
+  };
+
+  return (
+    <Web3AuthContext.Provider value={value}>
+      {children}
+    </Web3AuthContext.Provider>
+  );
+};
+
+export const useWeb3AuthContext = () => {
+  return useContext(Web3AuthContext);
+};

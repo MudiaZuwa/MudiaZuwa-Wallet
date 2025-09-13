@@ -1,0 +1,35 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap");
+
+@import "tailwindcss";
+@import-normalize;
+
+* {
+  font-family: "Outfit", sans-serif;
+}
+
+@theme {
+  --color-primary: #4fbf8b;
+  --color-primary-dull: #44ae7c;
+}
+
+@theme {
+  /* light theme */
+  --color-lightPrimary: #4fbf8b;
+  --color-lightPrimary-dull: #44ae7c;
+  --color-lightBg: #ffffff;
+  --color-lightText: #111111;
+  --color-lightCardBg: #f8f8f8;
+  --color-lightBorder: #e0e0e0;
+
+  /* dark theme */
+  --color-darkPrimary: #63d9a3;
+  --color-darkPrimary-dull: #57c495;
+  --color-darkBg: #1e1e1e;
+  --color-darkText: #f1f1f1;
+  --color-darkCardBg: #2a2a2a;
+  --color-darkBorder: #3a3a3a;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

@@ -1,0 +1,13 @@
+{
+  "type": "module",
+  "name": "paymaster",
+  "devDependencies": {
+    "@account-abstraction/contracts": "^0.8.0",
+    "@account-abstraction/sdk": "^0.6.0",
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "hardhat": "^2.26.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2"
+  }
+}
