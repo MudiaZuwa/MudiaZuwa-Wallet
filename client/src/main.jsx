@@ -5,9 +5,7 @@ import App from "./App.jsx";
 import { Web3AuthContextProvider } from "./context/Web3AuthContext.jsx";
 
 import { Buffer } from "buffer";
-if (!window.Buffer) {
-  window.Buffer = Buffer;
-}
+window.Buffer = window.Buffer || Buffer;
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
